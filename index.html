@@ -515,7 +515,15 @@
     return null;
   }
 
+  const baseRenderers = {}; // canvasId -> {renderer, raf}
+
   function renderBases(){
+    Object.values(baseRenderers).forEach(r=>{
+      cancelAnimationFrame(r.raf);
+      r.renderer.dispose();
+    });
+    for(const k in baseRenderers) delete baseRenderers[k];
+
     baseLayer.clearLayers();
     let idx = 0;
     for(const key of state.bases){
@@ -525,9 +533,16 @@
       L.rectangle(blockBounds, { color:'#F5B93F', weight:2, fillColor:'#F5B93F', fillOpacity:0.12 }).addTo(baseLayer);
       const centerLat = (blockBounds[0][0]+blockBounds[1][0])/2;
       const centerLng = (blockBounds[0][1]+blockBounds[1][1])/2;
+
+      const dispW = 130, dispH = 102, buf = 2;
       const canvasId = 'baseCanvas_' + (idx++);
-      const marker = L.marker([centerLat,centerLng], {
-        icon: L.divIcon({className:'', html:'<canvas id="'+canvasId+'" width="140" height="110" style="width:70px;height:55px;filter:drop-shadow(0 5px 4px rgba(0,0,0,0.4)) drop-shadow(0 0 7px rgba(245,185,63,0.6));"></canvas>', iconSize:[70,55], iconAnchor:[35,48]})
+      L.marker([centerLat,centerLng], {
+        icon: L.divIcon({
+          className:'',
+          html:'<canvas id="'+canvasId+'" width="'+(dispW*buf)+'" height="'+(dispH*buf)+'" style="width:'+dispW+'px;height:'+dispH+'px;filter:drop-shadow(0 5px 4px rgba(0,0,0,0.4)) drop-shadow(0 0 7px rgba(245,185,63,0.6));"></canvas>',
+          iconSize:[dispW, dispH],
+          iconAnchor:[dispW/2, dispH*0.88]
+        })
       }).addTo(baseLayer);
       setTimeout(()=> initBase3D(canvasId), 0);
     }
@@ -586,11 +601,13 @@
     }
 
     const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.06,0.9,6), dark);
-    mast.position.y = 2.1;
-    base.add(mast);
+    mast.position.y = 0.45;
     const beacon = new THREE.Mesh(new THREE.IcosahedronGeometry(0.13,0), gold);
-    beacon.position.y = 2.6;
-    base.add(beacon);
+    beacon.position.y = 1.0;
+    const antennaGroup = new THREE.Group();
+    antennaGroup.add(mast, beacon);
+    antennaGroup.position.y = 2.1;
+    base.add(antennaGroup);
 
     [-1,1].forEach(side=>{
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,1.1,6), dark);
@@ -615,7 +632,7 @@
 
     function animate(){
       requestAnimationFrame(animate);
-      base.rotation.y += 0.006;
+      antennaGroup.rotation.y += 0.04;
       renderer.render(scene, camera);
     }
     animate();
