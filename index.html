@@ -43,6 +43,7 @@
   /* ---------- HEADER ---------- */
   header{
     z-index:1000;
+    flex-shrink:0;
     display:flex;
     align-items:center;
     gap:12px;
@@ -87,6 +88,7 @@
   /* ---------- MAP ---------- */
   #mapWrap{
     flex:1;
+    min-height:0;
     position:relative;
     overflow:hidden;
     perspective:1000px;
@@ -94,12 +96,12 @@
   }
   #map{
     position:absolute;
-    left:-25%; top:-50%;
+    left:-25%; top:-80%;
     width:150%;
-    height:190%;
+    height:250%;
     background:#0A0F1A;
     transform-origin:50% 100%;
-    transform:rotateX(35deg) scale(1.7);
+    transform:rotateX(32deg) scale(1.9);
   }
   .leaflet-container{background:#0A0F1A;}
 
@@ -184,6 +186,7 @@
   /* ---------- BOTTOM SHEET ---------- */
   #sheet{
     z-index:1000;
+    flex-shrink:0;
     background:var(--panel);
     border-top:1px solid var(--panel-border);
     padding:12px 16px 16px;
