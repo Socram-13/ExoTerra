@@ -3,6 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0A0F1A">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>ExoTerra — Prototipo</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
@@ -236,6 +242,14 @@
     display:flex;align-items:center;justify-content:center;
     cursor:pointer;
   }
+  .fullscreen-btn{
+    position:absolute; right:10px; bottom:170px; z-index:1000;
+    width:40px;height:40px;border-radius:50%;
+    background:var(--panel); border:1px solid var(--panel-border);
+    color:var(--cyan); font-size:16px;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+  }
 
   /* ---------- CONFIRM MODAL ---------- */
   .modal{
@@ -289,6 +303,7 @@
   <div id="mapWrap">
     <div id="map"></div>
     <button class="recenter-btn" id="recenterBtn" title="Centrar en mi ubicación">🎯</button>
+    <button class="fullscreen-btn" id="fullscreenBtn" title="Pantalla completa">⛶</button>
     <div id="toast"></div>
   </div>
 
@@ -930,6 +945,19 @@
 
   document.getElementById('recenterBtn').addEventListener('click', ()=>{
     if(state.userPos) setViewTilted([state.userPos.lat, state.userPos.lng], 20);
+  });
+
+  document.getElementById('fullscreenBtn').addEventListener('click', ()=>{
+    const el = document.documentElement;
+    try{
+      if(!document.fullscreenElement){
+        const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+        const result = req && req.call(el);
+        if(result && result.catch) result.catch(()=> toast('Tu navegador no permite pantalla completa aquí','warn'));
+      } else {
+        document.exitFullscreen();
+      }
+    }catch(e){ toast('Tu navegador no permite pantalla completa aquí','warn'); }
   });
 
   // ---------- PERFIL: NOMBRE Y FOTO ----------
