@@ -354,7 +354,6 @@
     username: 'Jugador',
     avatarData: null
   };
-  loadProgress(); // restaura monedas, diamantes, celdas y base guardadas
 
   const SAVE_KEY = 'exoterra_save_v1';
 
@@ -384,6 +383,7 @@
       state.avatarData = d.avatarData || null;
     }catch(e){ console.warn('No se pudo cargar el progreso:', e); }
   }
+  loadProgress(); // restaura monedas, diamantes, celdas, base, nombre y foto guardados
 
   const toastEl = document.getElementById('toast');
   function toast(msg, type){
@@ -631,11 +631,13 @@
     scene.add(base);
 
     function animate(){
-      requestAnimationFrame(animate);
+      const raf = requestAnimationFrame(animate);
+      if(baseRenderers[canvasId]) baseRenderers[canvasId].raf = raf;
       antennaGroup.rotation.y += 0.04;
       renderer.render(scene, camera);
     }
-    animate();
+    const raf0 = requestAnimationFrame(animate);
+    baseRenderers[canvasId] = { renderer, raf: raf0 };
   }
 
   function refreshBaseAvailability(){
