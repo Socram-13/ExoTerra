@@ -350,6 +350,7 @@
   const CELL_COST = 10;
   const DIAMOND_REWARD_COINS = 5;
   const ACTION_RADIUS_M = 25;
+  const TARGET_SCREEN_METERS = ACTION_RADIUS_M*2 + CELL_METERS*2; // diámetro del radio de acción + 1 celda de cada lado
   const COLLECT_RADIUS_M = ACTION_RADIUS_M;
   const DIAMOND_MIN = 2;
   const DIAMOND_MAX = 6;
@@ -431,18 +432,19 @@
 
   // ---------- MAP INIT ----------
   const map = L.map('map', {
-    zoomControl:true,
+    zoomControl:false,
     attributionControl:false,
-    maxZoom:21,
-    minZoom:18,
+    zoomSnap:0,
+    zoomDelta:0.25,
+    maxZoom:22,
+    minZoom:14,
     dragging:true,
-    scrollWheelZoom:true,
-    doubleClickZoom:true,
-    touchZoom:true,
-    boxZoom:true,
-    keyboard:true
+    scrollWheelZoom:false,
+    doubleClickZoom:false,
+    touchZoom:false,
+    boxZoom:false,
+    keyboard:false
   }).setView([19.4326, -99.1332], 20);
-  map.zoomControl.setPosition('topright');
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:21, maxNativeZoom:19 }).addTo(map);
 
   const cellLayer = L.layerGroup().addTo(map);
@@ -453,6 +455,21 @@
   let lastPos = null;
   let heading = 0;
   const cellRects = new Map();
+
+  let FIXED_ZOOM = 20;
+
+  function computeFixedZoom(lat){
+    const screenWidthPx = document.getElementById('mapWrap').clientWidth || window.innerWidth || 360;
+    const metersPerPixel = TARGET_SCREEN_METERS / screenWidthPx;
+    const z = Math.log2(156543.03392 * Math.cos(lat*Math.PI/180) / metersPerPixel);
+    return Math.min(22, Math.max(14, z));
+  }
+
+  function lockZoomForUser(lat){
+    FIXED_ZOOM = computeFixedZoom(lat);
+    map.setMinZoom(FIXED_ZOOM);
+    map.setMaxZoom(FIXED_ZOOM);
+  }
 
   function setViewTilted(latlng, zoom, animate){
     // Coloca al usuario centrado horizontalmente y a 2/5 de la pantalla desde abajo (compensando la inclinación 3D)
@@ -844,7 +861,8 @@
       state.latStep = step.latStep;
       state.lngStep = step.lngStep;
       state.ready = true;
-      setViewTilted([lat,lng], 20);
+      lockZoomForUser(lat);
+      setViewTilted([lat,lng], FIXED_ZOOM);
       geoStatus.textContent = 'Ubicación activa';
       geoStatus.className = 'status ready';
       renderGrid();
@@ -866,7 +884,7 @@
       const now = performance.now();
       if(!window._lastFollowAt || now - window._lastFollowAt > 800){
         window._lastFollowAt = now;
-        setViewTilted([lat,lng], 20, true);
+        setViewTilted([lat,lng], FIXED_ZOOM, true);
       }
     }
 
@@ -1030,7 +1048,7 @@
   }
 
   document.getElementById('recenterBtn').addEventListener('click', ()=>{
-    if(state.userPos) setViewTilted([state.userPos.lat, state.userPos.lng], 20);
+    if(state.userPos) setViewTilted([state.userPos.lat, state.userPos.lng], FIXED_ZOOM);
   });
 
   document.getElementById('fullscreenBtn').addEventListener('click', ()=>{
