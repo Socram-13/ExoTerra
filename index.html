@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ExoTerra — Prototipo</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap');
+
+  :root{
+    --bg: #0A0F1A;
+    --panel: #101827;
+    --panel-border: #1E2A3F;
+    --cyan: #29E6E0;
+    --cyan-dim: rgba(41,230,224,0.35);
+    --gold: #F5B93F;
+    --violet: #8B6BFF;
+    --violet-dim: rgba(139,107,255,0.35);
+    --text: #E8EEF7;
+    --text-dim: #8595AD;
+    --danger: #FF6B6B;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;padding:0;}
+  body{
+    font-family:'Inter',sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    overflow:hidden;
+  }
+
+  #app{
+    position:relative;
+    width:100%;
+    height:100vh;
+    display:flex;
+    flex-direction:column;
+  }
+
+  /* ---------- HEADER ---------- */
+  header{
+    z-index:1000;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:10px 14px;
+    background:linear-gradient(180deg, rgba(10,15,26,0.97), rgba(10,15,26,0.85));
+    border-bottom:1px solid var(--panel-border);
+    backdrop-filter:blur(6px);
+  }
+
+  .avatar{
+    width:42px;height:42px;border-radius:50%;
+    background:radial-gradient(circle at 30% 30%, #3a4a63, #0d1420);
+    border:2px solid var(--cyan);
+    box-shadow:0 0 10px var(--cyan-dim);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700;font-size:16px;color:var(--cyan);
+    flex-shrink:0;
+  }
+
+  .id-block{display:flex;flex-direction:column;line-height:1.2;flex:1;min-width:0;}
+  .id-block .name{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:14px;}
+  .id-block .status{font-size:11px;color:var(--text-dim);}
+  .status.locating{color:var(--gold);}
+  .status.ready{color:var(--cyan);}
+  .status.warn{color:var(--danger);}
+
+  .stat{
+    display:flex;align-items:center;gap:5px;
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:20px;
+    padding:6px 12px;
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:600;font-size:13px;
+    white-space:nowrap;
+  }
+  .stat.coins{color:var(--gold);}
+  .stat.gems{color:var(--cyan);}
+  .stat .icon{font-size:13px;}
+
+  /* ---------- MAP ---------- */
+  #mapWrap{
+    flex:1;
+    position:relative;
+    overflow:hidden;
+    perspective:1000px;
+    background:var(--bg);
+  }
+  #map{
+    position:absolute;
+    left:-20%; top:-20%;
+    width:140%;
+    height:140%;
+    background:#0A0F1A;
+    transform-origin:50% 100%;
+    transform:rotateX(35deg) scale(1.6);
+  }
+  .leaflet-container{background:#0A0F1A;}
+
+  .cell-owned{filter:drop-shadow(0 0 4px var(--violet));}
+  .cell-locked:hover{cursor:pointer;}
+
+  .diamond-icon{cursor:pointer;}
+  .gem-wrap{
+    position:relative; width:34px; height:44px;
+    display:flex; align-items:flex-end; justify-content:center;
+  }
+  .gem-shadow{
+    position:absolute; bottom:2px; left:50%; transform:translateX(-50%);
+    width:20px; height:7px; border-radius:50%;
+    background:rgba(0,0,0,0.45);
+    filter:blur(1.5px);
+    animation:gemShadowPulse 1.8s ease-in-out infinite;
+  }
+  .gem-body{
+    position:relative;
+    width:24px; height:24px;
+    margin-bottom:14px;
+    background:linear-gradient(135deg, #eafffe 0%, #6FF3EF 35%, #29E6E0 65%, #0c8f8c 100%);
+    clip-path: polygon(50% 0%, 100% 35%, 80% 100%, 20% 100%, 0% 35%);
+    filter: drop-shadow(0 6px 5px rgba(0,0,0,0.4)) drop-shadow(0 0 9px rgba(41,230,224,0.85));
+    animation: gemFloat 2s ease-in-out infinite;
+  }
+  .gem-body::after{
+    content:''; position:absolute; top:15%; left:38%;
+    width:8px; height:8px;
+    background:rgba(255,255,255,0.85);
+    clip-path: polygon(50% 0%, 100% 40%, 60% 100%, 0% 55%);
+  }
+  @keyframes gemFloat{
+    0%,100%{ transform:translateY(0); }
+    50%{ transform:translateY(-8px); }
+  }
+  @keyframes gemShadowPulse{
+    0%,100%{ transform:translateX(-50%) scale(1); opacity:0.45; }
+    50%{ transform:translateX(-50%) scale(0.7); opacity:0.25; }
+  }
+
+  .user-wrap{
+    position:relative; width:40px; height:64px;
+    display:flex; align-items:flex-end; justify-content:center;
+  }
+  .user-shadow{
+    position:absolute; bottom:0; left:50%; transform:translateX(-50%);
+    width:24px; height:8px; border-radius:50%;
+    background:rgba(0,0,0,0.4);
+    filter:blur(1.5px);
+  }
+  .astro-figure{
+    width:34px; height:51px;
+    margin-bottom:2px;
+    filter: drop-shadow(0 6px 5px rgba(0,0,0,0.35)) drop-shadow(0 0 8px rgba(41,230,224,0.65));
+    transition: transform 0.4s ease;
+  }
+  .astro-figure svg{ width:100%; height:100%; display:block; }
+
+  /* ---------- TOAST ---------- */
+  #toast{
+    position:absolute;
+    top:70px;left:50%;
+    transform:translateX(-50%) translateY(-10px);
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    padding:8px 16px;
+    border-radius:10px;
+    font-size:13px;
+    font-weight:500;
+    z-index:2000;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease;
+  }
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  #toast.ok{border-color:var(--cyan);color:var(--cyan);}
+  #toast.warn{border-color:var(--danger);color:var(--danger);}
+  #toast.gold{border-color:var(--gold);color:var(--gold);}
+
+  /* ---------- BOTTOM SHEET ---------- */
+  #sheet{
+    z-index:1000;
+    background:var(--panel);
+    border-top:1px solid var(--panel-border);
+    padding:12px 16px 16px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  #sheet .row{display:flex;justify-content:space-between;align-items:center;}
+  #sheet .title{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:13px;color:var(--text-dim);letter-spacing:0.02em;text-transform:uppercase;}
+  #sheet .hint{font-size:12px;color:var(--text-dim);}
+
+  .legend{display:flex;gap:14px;font-size:11px;color:var(--text-dim);flex-wrap:wrap;}
+  .legend span{display:flex;align-items:center;gap:5px;}
+  .swatch{width:10px;height:10px;border-radius:3px;display:inline-block;}
+  .sw-locked{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);}
+  .sw-owned{background:var(--violet-dim);border:1px solid var(--violet);}
+
+  /* ---------- FLOATING BUTTONS ---------- */
+  .recenter-btn{
+    position:absolute; right:10px; bottom:120px; z-index:1000;
+    width:40px;height:40px;border-radius:50%;
+    background:var(--panel); border:1px solid var(--panel-border);
+    color:var(--cyan); font-size:18px;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+  }
+
+  /* ---------- CONFIRM MODAL ---------- */
+  .modal{
+    position:absolute; inset:0; z-index:3000;
+    background:rgba(5,8,14,0.6);
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; pointer-events:none;
+    transition:opacity .18s ease;
+  }
+  .modal.show{opacity:1; pointer-events:auto;}
+  .modal-card{
+    width:min(300px, 84%);
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:14px;
+    padding:18px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.5);
+  }
+  .modal-title{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;margin-bottom:6px;}
+  .modal-msg{font-size:13px;color:var(--text-dim);line-height:1.4;margin-bottom:16px;}
+  .modal-actions{display:flex;gap:10px;}
+  .modal-actions button{
+    flex:1;
+    padding:9px 0;
+    border-radius:8px;
+    border:1px solid var(--panel-border);
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:13px;
+    cursor:pointer;
+  }
+  .btn-no{background:transparent;color:var(--text-dim);}
+  .btn-yes{background:var(--violet);color:#fff;border-color:var(--violet);}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <div class="avatar" id="avatar">JD</div>
+    <div class="id-block">
+      <div class="name">Jugador</div>
+      <div class="status locating" id="geoStatus">Buscando ubicación…</div>
+    </div>
+    <div class="stat coins"><span class="icon">🪙</span><span id="coinCount">200</span></div>
+    <div class="stat gems"><span class="icon">💎</span><span id="gemCount">0</span></div>
+  </header>
+
+  <div id="mapWrap">
+    <div id="map"></div>
+    <button class="recenter-btn" id="recenterBtn" title="Centrar en mi ubicación">🎯</button>
+    <div id="toast"></div>
+  </div>
+
+  <div id="confirmModal" class="modal">
+    <div class="modal-card">
+      <div class="modal-title" id="confirmTitle">Confirmar compra</div>
+      <div class="modal-msg" id="confirmMsg">¿Comprar esta celda?</div>
+      <div class="modal-actions">
+        <button class="btn-no" id="confirmNo">Cancelar</button>
+        <button class="btn-yes" id="confirmYes">Comprar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="sheet">
+    <div class="row">
+      <span class="title">ExoTerra</span>
+      <span class="hint" id="cellHint">Radio de acción: 25m</span>
+    </div>
+    <div class="legend">
+      <span><i class="swatch sw-locked"></i>Libre — toca para comprar</span>
+      <span><i class="swatch sw-owned"></i>Tuya</span>
+      <span>💎 Diamante — acércate y tócalo</span>
+    </div>
+    <div class="row" id="baseBar" style="display:none;background:rgba(245,185,63,0.1);border:1px solid var(--gold);border-radius:10px;padding:8px 10px;">
+      <span style="font-size:12px;color:var(--gold);font-weight:600;">🏠 Tienes un bloque 3x3 listo</span>
+      <button id="buildBaseBtn" style="background:var(--gold);color:#1a1200;border:none;border-radius:8px;padding:6px 12px;font-weight:700;font-size:12px;cursor:pointer;">Construir (50 🪙)</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+(function(){
+  window.addEventListener('error', (e)=>{
+    console.error('Error capturado:', e.error || e.message);
+  });
+
+  // ---------- CONFIG ----------
+  const CELL_METERS = 5;
+  const CELL_COST = 10;
+  const DIAMOND_REWARD_COINS = 5;
+  const ACTION_RADIUS_M = 25;
+  const COLLECT_RADIUS_M = ACTION_RADIUS_M;
+  const DIAMOND_MIN = 2;
+  const DIAMOND_MAX = 6;
+  const BASE_BLOCK = 3;
+  const BASE_COST = 50;
+  const GRID_MIN_ZOOM = 17;
+
+  // ---------- STATE ----------
+  let state = {
+    coins: 200,
+    gems: 0,
+    ownedCells: new Set(),
+    bases: new Set(),
+    diamonds: new Map(),
+    userPos: null,
+    latStep: null,
+    lngStep: null,
+    ready: false
+  };
+
+  const toastEl = document.getElementById('toast');
+  function toast(msg, type){
+    toastEl.textContent = msg;
+    toastEl.className = 'show ' + (type || '');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(()=> toastEl.className = '', 1800);
+  }
+
+  function updateHUD(){
+    document.getElementById('coinCount').textContent = state.coins;
+    document.getElementById('gemCount').textContent = state.gems;
+  }
+
+  // ---------- MAP INIT ----------
+  const map = L.map('map', {
+    zoomControl:true,
+    attributionControl:false,
+    maxZoom:21,
+    minZoom:18,
+    dragging:true,
+    scrollWheelZoom:true,
+    doubleClickZoom:true,
+    touchZoom:true,
+    boxZoom:true,
+    keyboard:true
+  }).setView([19.4326, -99.1332], 20);
+  map.zoomControl.setPosition('topright');
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:21, maxNativeZoom:19 }).addTo(map);
+
+  const cellLayer = L.layerGroup().addTo(map);
+  const baseLayer = L.layerGroup().addTo(map);
+  const diamondLayer = L.layerGroup().addTo(map);
+  let meMarker = null;
+  let actionCircle = null;
+  let lastPos = null;
+  let heading = 0;
+  const cellRects = new Map();
+
+  function setViewTilted(latlng, zoom){
+    const offsetPx = (document.getElementById('mapWrap').clientHeight || 500) * 0.30;
+    const targetPoint = map.project(latlng, zoom).subtract(L.point(0, offsetPx));
+    const shifted = map.unproject(targetPoint, zoom);
+    map.setView(shifted, zoom);
+  }
+
+  function bearingDeg(a,b){
+    const φ1=a.lat*Math.PI/180, φ2=b.lat*Math.PI/180;
+    const Δλ=(b.lng-a.lng)*Math.PI/180;
+    const y=Math.sin(Δλ)*Math.cos(φ2);
+    const x=Math.cos(φ1)*Math.sin(φ2)-Math.sin(φ1)*Math.cos(φ2)*Math.cos(Δλ);
+    return (Math.atan2(y,x)*180/Math.PI + 360) % 360;
+  }
+
+  function metersToStep(lat){
+    const latStep = CELL_METERS / 111320;
+    const lngStep = CELL_METERS / (111320 * Math.cos(lat * Math.PI/180));
+    return { latStep, lngStep };
+  }
+
+  function cellBounds(i,j){
+    const lat0 = i * state.latStep, lat1 = (i+1)*state.latStep;
+    const lng0 = j * state.lngStep, lng1 = (j+1)*state.lngStep;
+    return [[lat0,lng0],[lat1,lng1]];
+  }
+
+  function distMeters(a,b){
+    const R=6371000;
+    const dLat=(b.lat-a.lat)*Math.PI/180, dLng=(b.lng-a.lng)*Math.PI/180;
+    const s=Math.sin(dLat/2)**2 + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2;
+    return 2*R*Math.asin(Math.sqrt(s));
+  }
+
+  function renderGrid(){
+    if(!state.latStep) return;
+    cellLayer.clearLayers();
+    cellRects.clear();
+    if(map.getZoom() < GRID_MIN_ZOOM) return;
+
+    const bounds = map.getBounds().pad(0.3);
+    const iMin = Math.floor(bounds.getSouth() / state.latStep);
+    const iMax = Math.floor(bounds.getNorth() / state.latStep);
+    const jMin = Math.floor(bounds.getWest() / state.lngStep);
+    const jMax = Math.floor(bounds.getEast() / state.lngStep);
+
+    for(let i=iMin; i<=iMax; i++){
+      for(let j=jMin; j<=jMax; j++){
+        const id = i+'_'+j;
+        const owned = state.ownedCells.has(id);
+        const rect = L.rectangle(cellBounds(i,j), {
+          color: owned ? '#8B6BFF' : 'rgba(255,255,255,0.28)',
+          weight: owned ? 2 : 1,
+          fillColor: owned ? '#8B6BFF' : '#ffffff',
+          fillOpacity: owned ? 0.28 : 0.03,
+          className: owned ? 'cell-owned' : 'cell-locked'
+        }).addTo(cellLayer);
+        rect.on('click', ()=> tryBuyCell(id, i, j));
+        cellRects.set(id, rect);
+      }
+    }
+  }
+  map.on('moveend zoomend', renderGrid);
+
+  function findEligibleBaseBlock(){
+    for(const id of state.ownedCells){
+      const [i,j] = id.split('_').map(Number);
+      let complete = true;
+      for(let di=0; di<BASE_BLOCK && complete; di++){
+        for(let dj=0; dj<BASE_BLOCK && complete; dj++){
+          if(!state.ownedCells.has((i+di)+'_'+(j+dj))) complete = false;
+        }
+      }
+      if(complete && !state.bases.has(id)) return {i,j,id};
+    }
+    return null;
+  }
+
+  function renderBases(){
+    baseLayer.clearLayers();
+    for(const key of state.bases){
+      const [i,j] = key.split('_').map(Number);
+      const b0 = cellBounds(i,j), b1 = cellBounds(i+BASE_BLOCK-1, j+BASE_BLOCK-1);
+      const blockBounds = [[b0[0][0], b0[0][1]], [b1[1][0], b1[1][1]]];
+      L.rectangle(blockBounds, { color:'#F5B93F', weight:2, fillColor:'#F5B93F', fillOpacity:0.18 }).addTo(baseLayer);
+      const centerLat = (blockBounds[0][0]+blockBounds[1][0])/2;
+      const centerLng = (blockBounds[0][1]+blockBounds[1][1])/2;
+      L.marker([centerLat,centerLng], {
+        icon: L.divIcon({className:'', html:'<div style="font-size:22px;filter:drop-shadow(0 0 6px #F5B93F)">🏠</div>', iconSize:[26,26]})
+      }).addTo(baseLayer);
+    }
+  }
+
+  function refreshBaseAvailability(){
+    const eligible = findEligibleBaseBlock();
+    const bar = document.getElementById('baseBar');
+    if(eligible){
+      bar.style.display = 'flex';
+      bar.dataset.blockId = eligible.id;
+    } else {
+      bar.style.display = 'none';
+      bar.dataset.blockId = '';
+    }
+  }
+
+  function tryBuildBase(){
+    const bar = document.getElementById('baseBar');
+    const id = bar.dataset.blockId;
+    if(!id) return;
+    if(state.coins < BASE_COST){ toast('Monedas insuficientes para la base','warn'); return; }
+    openConfirmBase(id);
+  }
+  function confirmBuildBase(id){
+    if(state.coins < BASE_COST || state.bases.has(id)){ closeConfirm(); return; }
+    state.coins -= BASE_COST;
+    state.bases.add(id);
+    updateHUD();
+    renderBases();
+    refreshBaseAvailability();
+    closeConfirm();
+    toast('🏠 Base construida — '+BASE_COST+' 🪙','gold');
+  }
+  document.getElementById('buildBaseBtn').addEventListener('click', tryBuildBase);
+
+  function tryBuyCell(id,i,j){
+    if(state.ownedCells.has(id)){ toast('Ya tienes esta celda ✓','ok'); return; }
+    if(!state.userPos){ toast('Esperando tu ubicación…','warn'); return; }
+    const b = cellBounds(i,j);
+    const centerLat = (b[0][0]+b[1][0])/2, centerLng = (b[0][1]+b[1][1])/2;
+    const dist = distMeters(state.userPos, {lat:centerLat, lng:centerLng});
+    if(dist > ACTION_RADIUS_M){ toast('Fuera de tu radio de acción ('+Math.round(dist)+'m)','warn'); return; }
+    if(state.coins < CELL_COST){ toast('Monedas insuficientes','warn'); return; }
+    openConfirm(id);
+  }
+
+  function confirmPurchase(id){
+    if(state.ownedCells.has(id) || state.coins < CELL_COST){ closeConfirm(); return; }
+    state.coins -= CELL_COST;
+    state.ownedCells.add(id);
+    updateHUD();
+    renderGrid();
+    refreshBaseAvailability();
+    closeConfirm();
+    toast('Celda adquirida — '+CELL_COST+' 🪙','ok');
+  }
+
+  const confirmModal = document.getElementById('confirmModal');
+  const confirmMsg = document.getElementById('confirmMsg');
+  const confirmTitle = document.getElementById('confirmTitle');
+  const confirmYesBtn = document.getElementById('confirmYes');
+  let pendingId = null, pendingAction = 'cell';
+
+  function openConfirm(id){
+    pendingId = id; pendingAction = 'cell';
+    confirmTitle.textContent = 'Confirmar compra';
+    confirmYesBtn.textContent = 'Comprar';
+    confirmMsg.textContent = '¿Comprar esta celda por '+CELL_COST+' 🪙? Tendrás '+(state.coins-CELL_COST)+' 🪙 restantes.';
+    confirmModal.classList.add('show');
+  }
+  function openConfirmBase(id){
+    pendingId = id; pendingAction = 'base';
+    confirmTitle.textContent = 'Construir base';
+    confirmYesBtn.textContent = 'Construir';
+    confirmMsg.textContent = '¿Construir tu base en este bloque 3x3 por '+BASE_COST+' 🪙? Tendrás '+(state.coins-BASE_COST)+' 🪙 restantes.';
+    confirmModal.classList.add('show');
+  }
+  function closeConfirm(){ confirmModal.classList.remove('show'); pendingId = null; }
+  confirmYesBtn.addEventListener('click', ()=>{
+    if(!pendingId) return;
+    if(pendingAction === 'cell') confirmPurchase(pendingId);
+    else confirmBuildBase(pendingId);
+  });
+  document.getElementById('confirmNo').addEventListener('click', closeConfirm);
+
+  function randomPointInBounds(){
+    const b = map.getBounds();
+    const lat = b.getSouth() + Math.random()*(b.getNorth()-b.getSouth());
+    const lng = b.getWest() + Math.random()*(b.getEast()-b.getWest());
+    return {lat,lng};
+  }
+
+  function spawnDiamond(){
+    if(!state.userPos) return;
+    let pos, tries = 0;
+    do{ pos = randomPointInBounds(); tries++; }
+    while(distMeters(state.userPos,pos) < ACTION_RADIUS_M && tries < 12);
+    const id = 'd_'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
+    const icon = L.divIcon({ className:'diamond-icon', html:'<div class="gem-wrap"><div class="gem-body"></div><div class="gem-shadow"></div></div>', iconSize:[34,44], iconAnchor:[17,44] });
+    const marker = L.marker([pos.lat,pos.lng], {icon}).addTo(diamondLayer);
+    marker.on('click', ()=> tryCollect(id));
+    state.diamonds.set(id, { marker, lat:pos.lat, lng:pos.lng });
+  }
+
+  function currentDiamondTarget(){
+    return Math.floor(DIAMOND_MIN + Math.random()*(DIAMOND_MAX-DIAMOND_MIN+1));
+  }
+  let diamondTarget = currentDiamondTarget();
+
+  function ensureDiamonds(){
+    if(state.diamonds.size === 0) diamondTarget = currentDiamondTarget();
+    while(state.diamonds.size < diamondTarget) spawnDiamond();
+  }
+
+  function tryCollect(id){
+    const d = state.diamonds.get(id);
+    if(!d || !state.userPos) return;
+    const dist = distMeters(state.userPos, d);
+    if(dist > COLLECT_RADIUS_M){ toast('Muy lejos — acércate ('+Math.round(dist)+'m)','warn'); return; }
+    diamondLayer.removeLayer(d.marker);
+    state.diamonds.delete(id);
+    state.gems += 1;
+    state.coins += DIAMOND_REWARD_COINS;
+    updateHUD();
+    toast('+1 💎  +'+DIAMOND_REWARD_COINS+' 🪙','gold');
+  }
+
+  const geoStatus = document.getElementById('geoStatus');
+
+  function onPosition(pos){
+    const lat = pos.coords.latitude, lng = pos.coords.longitude;
+    state.userPos = {lat,lng};
+
+    if(!state.ready){
+      const step = metersToStep(lat);
+      state.latStep = step.latStep;
+      state.lngStep = step.lngStep;
+      state.ready = true;
+      setViewTilted([lat,lng], 20);
+      geoStatus.textContent = 'Ubicación activa';
+      geoStatus.className = 'status ready';
+      renderGrid();
+      refreshBaseAvailability();
+      ensureDiamonds();
+      setInterval(ensureDiamonds, 4000);
+    }
+
+    if(!meMarker){
+    const astroSvg = `<svg viewBox="0 0 60 90" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="suitGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f5f7fa"/><stop offset="55%" stop-color="#c7d0dc"/><stop offset="100%" stop-color="#94a2b5"/>
+        </linearGradient>
+        <linearGradient id="helmetGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#ffffff"/><stop offset="60%" stop-color="#dfe6ee"/><stop offset="100%" stop-color="#aab6c8"/>
+        </linearGradient>
+        <radialGradient id="visorGrad" cx="35%" cy="30%" r="75%">
+          <stop offset="0%" stop-color="#bdf5f2"/><stop offset="35%" stop-color="#29b8b3"/><stop offset="75%" stop-color="#0c3d3b"/><stop offset="100%" stop-color="#041615"/>
+        </radialGradient>
+        <linearGradient id="darkGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#4a5568"/><stop offset="100%" stop-color="#242b36"/>
+        </linearGradient>
+      </defs>
+      <rect x="14" y="30" width="32" height="28" rx="5" fill="#9aa6b8"/>
+      <rect x="18" y="62" width="10" height="20" rx="4" fill="url(#suitGrad)"/>
+      <rect x="32" y="62" width="10" height="20" rx="4" fill="url(#suitGrad)"/>
+      <rect x="16" y="79" width="13" height="8" rx="3" fill="url(#darkGrad)"/>
+      <rect x="31" y="79" width="13" height="8" rx="3" fill="url(#darkGrad)"/>
+      <rect x="6" y="34" width="10" height="22" rx="5" fill="url(#suitGrad)" transform="rotate(10 11 45)"/>
+      <rect x="44" y="34" width="10" height="22" rx="5" fill="url(#suitGrad)" transform="rotate(-10 49 45)"/>
+      <circle cx="10" cy="57" r="6" fill="url(#darkGrad)"/>
+      <circle cx="50" cy="57" r="6" fill="url(#darkGrad)"/>
+      <rect x="15" y="32" width="30" height="30" rx="9" fill="url(#suitGrad)"/>
+      <rect x="21" y="40" width="18" height="12" rx="2" fill="#e8ecf1" stroke="#aab6c8" stroke-width="0.5"/>
+      <circle cx="25" cy="46" r="2" fill="#e0483f"/>
+      <circle cx="31" cy="46" r="2" fill="#3f8de0"/>
+      <circle cx="35" cy="46" r="1.6" fill="#3f8de0"/>
+      <rect x="22" y="26" width="16" height="8" rx="3" fill="#8b98ab"/>
+      <ellipse cx="30" cy="18" rx="19" ry="19" fill="url(#helmetGrad)"/>
+      <ellipse cx="30" cy="19" rx="13" ry="12" fill="url(#visorGrad)"/>
+      <ellipse cx="25" cy="14" rx="3.5" ry="2.2" fill="#ffffff" opacity="0.75"/>
+    </svg>`;
+    meMarker = L.marker([lat,lng], { icon: L.divIcon({className:'', html:'<div class="user-wrap"><div class="astro-figure">'+astroSvg+'</div><div class="user-shadow"></div></div>', iconSize:[40,64], iconAnchor:[20,64]}) }).addTo(map);
+      actionCircle = L.circle([lat,lng], {
+        radius: ACTION_RADIUS_M, color:'#29E6E0', weight:1.5, dashArray:'4 6',
+        fillColor:'#29E6E0', fillOpacity:0.05
+      }).addTo(map);
+    } else {
+      meMarker.setLatLng([lat,lng]);
+      actionCircle.setLatLng([lat,lng]);
+    }
+
+    if(lastPos){
+      const moved = distMeters(lastPos, {lat,lng});
+      if(moved > 1){
+        heading = bearingDeg(lastPos, {lat,lng});
+        lastPos = {lat,lng};
+      }
+    } else {
+      lastPos = {lat,lng};
+    }
+    const figEl = meMarker.getElement() && meMarker.getElement().querySelector('.astro-figure');
+    if(figEl) figEl.style.transform = 'rotate(' + heading + 'deg)';
+
+    renderGrid();
+  }
+
+  function onGeoError(){
+    geoStatus.textContent = 'Sin acceso a ubicación — usando demo';
+    geoStatus.className = 'status warn';
+    onPosition({coords:{latitude:19.4326, longitude:-99.1332}});
+  }
+
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(onPosition, onGeoError, {enableHighAccuracy:true, timeout:8000});
+    navigator.geolocation.watchPosition(onPosition, ()=>{}, {enableHighAccuracy:true});
+  } else {
+    onGeoError();
+  }
+
+  document.getElementById('recenterBtn').addEventListener('click', ()=>{
+    if(state.userPos) setViewTilted([state.userPos.lat, state.userPos.lng], 20);
+  });
+
+  updateHUD();
+})();
+</script>
+</body>
+</html>
