@@ -781,6 +781,7 @@
       geoStatus.textContent = 'Ubicación activa';
       geoStatus.className = 'status ready';
       renderGrid();
+      renderBases();
       refreshBaseAvailability();
       ensureDiamonds();
       setInterval(ensureDiamonds, 4000);
