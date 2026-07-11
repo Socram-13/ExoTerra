@@ -188,7 +188,7 @@
   #astroCanvas{
     width:44px; height:68px;
     margin-bottom:2px;
-    filter: drop-shadow(0 6px 5px rgba(0,0,0,0.35)) drop-shadow(0 0 8px rgba(41,230,224,0.55));
+    filter: drop-shadow(0 6px 5px rgba(0,0,0,0.35));
   }
 
   /* ---------- TOAST ---------- */
@@ -452,11 +452,17 @@
   let heading = 0;
   const cellRects = new Map();
 
-  function setViewTilted(latlng, zoom){
-    const offsetPx = (document.getElementById('mapWrap').clientHeight || 500) * 0.30;
+  function setViewTilted(latlng, zoom, animate){
+    // Coloca al usuario centrado horizontalmente y a 2/5 de la pantalla desde abajo (compensando la inclinación 3D)
+    const h = document.getElementById('mapWrap').clientHeight || 500;
+    const offsetPx = h * 0.42;
     const targetPoint = map.project(latlng, zoom).subtract(L.point(0, offsetPx));
     const shifted = map.unproject(targetPoint, zoom);
-    map.setView(shifted, zoom);
+    if(animate){
+      map.setView(shifted, zoom, { animate:true, duration:0.5, easeLinearity:0.4 });
+    } else {
+      map.setView(shifted, zoom);
+    }
   }
 
   function bearingDeg(a,b){
@@ -788,8 +794,42 @@
 
   const geoStatus = document.getElementById('geoStatus');
 
+  const GPS_MAX_ACCURACY = 30; // metros: ignora lecturas peores que esto (salvo la primera)
+  const POS_SMOOTH_ALPHA = 0.35; // cuánto pesa la nueva lectura vs la posición suavizada anterior
+  let animGen = 0;
+
+  function lerp(a,b,t){ return a + (b-a)*t; }
+
+  function animateMarkerTo(lat,lng){
+    const from = meMarker.getLatLng();
+    const to = L.latLng(lat,lng);
+    const myGen = ++animGen;
+    const start = performance.now();
+    const DURATION = 450;
+    function step(now){
+      if(myGen !== animGen) return; // una animación más nueva la reemplazó
+      const t = Math.min(1, (now-start)/DURATION);
+      const clat = lerp(from.lat, to.lat, t);
+      const clng = lerp(from.lng, to.lng, t);
+      meMarker.setLatLng([clat,clng]);
+      if(actionCircle) actionCircle.setLatLng([clat,clng]);
+      if(t < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
   function onPosition(pos){
-    const lat = pos.coords.latitude, lng = pos.coords.longitude;
+    const rawLat = pos.coords.latitude, rawLng = pos.coords.longitude;
+    const accuracy = pos.coords.accuracy || 0;
+
+    // Ignora lecturas GPS muy imprecisas una vez que ya tenemos una posición inicial
+    if(state.ready && accuracy > GPS_MAX_ACCURACY) return;
+
+    let lat = rawLat, lng = rawLng;
+    if(state.userPos){
+      lat = lerp(state.userPos.lat, rawLat, POS_SMOOTH_ALPHA);
+      lng = lerp(state.userPos.lng, rawLng, POS_SMOOTH_ALPHA);
+    }
     state.userPos = {lat,lng};
 
     if(!state.ready){
@@ -815,14 +855,25 @@
       }).addTo(map);
       setTimeout(initAstronaut3D, 0);
     } else {
-      meMarker.setLatLng([lat,lng]);
-      actionCircle.setLatLng([lat,lng]);
+      animateMarkerTo(lat,lng);
+      const now = performance.now();
+      if(!window._lastFollowAt || now - window._lastFollowAt > 800){
+        window._lastFollowAt = now;
+        setViewTilted([lat,lng], 20, true);
+      }
     }
 
     if(lastPos){
       const moved = distMeters(lastPos, {lat,lng});
       if(moved > 1 && moved < 100){
         heading = bearingDeg(lastPos, {lat,lng});
+      }
+      if(moved > 0.6){
+        if(window._astroSetMoving) window._astroSetMoving(true);
+        clearTimeout(window._movingResetTimer);
+        window._movingResetTimer = setTimeout(()=>{
+          if(window._astroSetMoving) window._astroSetMoving(false);
+        }, 1500);
       }
       lastPos = {lat,lng};
     } else {
@@ -891,6 +942,8 @@
     visorMesh.position.set(0,1.84,0.4);
     astro.add(visorMesh);
 
+    const legGroups = { left:null, right:null };
+
     [-1,1].forEach(side=>{
       const shoulder = new THREE.Mesh(new THREE.IcosahedronGeometry(0.24,0), suit);
       shoulder.position.set(side*0.6,0.95,0);
@@ -909,15 +962,21 @@
       const glove = new THREE.Mesh(new THREE.IcosahedronGeometry(0.19,0), dark);
       glove.position.set(side*0.9,-0.3,0.22);
       astro.add(glove);
+
+      // Grupo de pierna con pivote en la cadera, para poder animar el paso
+      const legGroup = new THREE.Group();
+      legGroup.position.set(side*0.3, -0.4, 0);
       const hip = new THREE.Mesh(new THREE.IcosahedronGeometry(0.24,0), suit);
-      hip.position.set(side*0.28,-0.4,0);
-      astro.add(hip);
+      hip.position.set(side*-0.02, 0, 0);
+      legGroup.add(hip);
       const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.23,0.17,1.0,6), suit);
-      leg.position.set(side*0.3,-0.95,0);
-      astro.add(leg);
+      leg.position.set(0, -0.55, 0);
+      legGroup.add(leg);
       const boot = new THREE.Mesh(new THREE.BoxGeometry(0.38,0.26,0.6), dark);
-      boot.position.set(side*0.3,-1.5,0.1);
-      astro.add(boot);
+      boot.position.set(0, -1.1, 0.1);
+      legGroup.add(boot);
+      astro.add(legGroup);
+      if(side === -1) legGroups.left = legGroup; else legGroups.right = legGroup;
     });
 
     scene.add(astro);
@@ -925,11 +984,26 @@
     let targetRotY = 0;
     window._astroSetHeading = (deg)=>{ targetRotY = deg * Math.PI/180; };
 
+    let walking = false;
+    window._astroSetMoving = (m)=>{ walking = m; };
+    let walkPhase = 0;
+
     function animate(){
       requestAnimationFrame(animate);
       let diff = targetRotY - astro.rotation.y;
       diff = ((diff + Math.PI) % (2*Math.PI)) - Math.PI; // camino más corto
       astro.rotation.y += diff * 0.12;
+
+      if(walking){
+        walkPhase += 0.2;
+        const swing = Math.sin(walkPhase) * 0.55;
+        legGroups.left.rotation.x = swing;
+        legGroups.right.rotation.x = -swing;
+      } else {
+        legGroups.left.rotation.x *= 0.85;
+        legGroups.right.rotation.x *= 0.85;
+      }
+
       renderer.render(scene, camera);
     }
     animate();
