@@ -577,7 +577,7 @@
       const cornerA = map.latLngToContainerPoint(L.latLng(blockBounds[0][0], blockBounds[0][1]));
       const cornerB = map.latLngToContainerPoint(L.latLng(blockBounds[1][0], blockBounds[1][1]));
       const dispW = Math.max(60, Math.round(Math.abs(cornerB.x - cornerA.x) * 1.15));
-      const dispH = Math.round(dispW * 0.79);
+      const dispH = Math.round(dispW * 1.05);
       const buf = 2;
       const canvasId = 'baseCanvas_' + (idx++);
       L.marker([centerLat,centerLng], {
@@ -598,9 +598,9 @@
     if(!canvas || !window.THREE) return;
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(38, canvas.width/canvas.height, 0.1, 100);
-    camera.position.set(2.6, 3.6, 3.2);
-    camera.lookAt(0, 0.35, 0);
+    const camera = new THREE.PerspectiveCamera(42, canvas.width/canvas.height, 0.1, 100);
+    camera.position.set(3.1, 4.1, 3.9);
+    camera.lookAt(0, 1.0, 0);
     const renderer = new THREE.WebGLRenderer({canvas, alpha:true, antialias:true});
     renderer.setSize(canvas.width, canvas.height, false);
 
@@ -645,14 +645,54 @@
       base.add(win);
     }
 
-    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.06,0.9,6), dark);
-    mast.position.y = 0.45;
-    const beacon = new THREE.Mesh(new THREE.IcosahedronGeometry(0.13,0), gold);
-    beacon.position.y = 1.0;
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.06,0.7,6), dark);
+    mast.position.y = 0.35;
+
+    // Plato parabólico: casquete esférico poco profundo, orientado hacia arriba/afuera
+    const dishMat = mat(0xe6eaf0, 0.5);
+    dishMat.side = THREE.DoubleSide;
+    const dish = new THREE.Mesh(new THREE.SphereGeometry(0.38, 12, 8, 0, Math.PI*2, 0, Math.PI*0.42), dishMat);
+    const dishCenter = new THREE.Vector3(0, 0.78, 0);
+    dish.position.copy(dishCenter);
+    dish.rotation.x = -Math.PI * 0.62; // inclina el plato para que "apunte" hacia afuera
+
+    // Punto focal calculado geométricamente frente al lado cóncavo del plato
+    const concaveNormal = new THREE.Vector3(0,-1,0).applyAxisAngle(new THREE.Vector3(1,0,0), dish.rotation.x);
+    const focalPoint = dishCenter.clone().add(concaveNormal.clone().multiplyScalar(0.35));
+    const dirToDish = dishCenter.clone().sub(focalPoint).normalize();
+    const feedQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0), dirToDish);
+
+    // Bocina (feed horn) en el punto focal, sostenida por un brazo delgado — ambos "mirando" al plato
+    const feedHorn = new THREE.Mesh(new THREE.ConeGeometry(0.06,0.16,8), dark);
+    feedHorn.position.copy(focalPoint);
+    feedHorn.quaternion.copy(feedQuat);
+
+    const feedArm = new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,0.3,5), dark);
+    feedArm.position.copy(focalPoint.clone().lerp(dishCenter, 0.5));
+    feedArm.quaternion.copy(feedQuat);
+
+    // Soporte que conecta el plato al mástil
+    const bracket = new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.18,6), dark);
+    bracket.position.set(0, 0.72, -0.05);
+    bracket.rotation.x = -0.6;
+
     const antennaGroup = new THREE.Group();
-    antennaGroup.add(mast, beacon);
-    antennaGroup.position.y = 2.1;
+    antennaGroup.add(mast, dish, feedArm, feedHorn, bracket);
+    antennaGroup.position.y = 1.95;
     base.add(antennaGroup);
+
+    // Ondas de señal emitidas desde la bocina, orientadas hacia afuera (misma dirección que la bocina)
+    const waveMat = new THREE.MeshBasicMaterial({color:0x29E6E0, transparent:true, opacity:0.6, side:THREE.DoubleSide, depthWrite:false});
+    const waveRings = [];
+    const ringQuat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,1), dirToDish.clone().negate());
+    for(let w=0; w<3; w++){
+      const ring = new THREE.Mesh(new THREE.RingGeometry(0.08,0.13,20), waveMat.clone());
+      ring.position.copy(focalPoint);
+      ring.quaternion.copy(ringQuat);
+      antennaGroup.add(ring);
+      waveRings.push({ mesh: ring, phase: w/3 });
+    }
+
 
     [-1,1].forEach(side=>{
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,1.1,6), dark);
@@ -675,10 +715,21 @@
 
     scene.add(base);
 
+    let waveClock = 0;
     function animate(){
       const raf = requestAnimationFrame(animate);
       if(baseRenderers[canvasId]) baseRenderers[canvasId].raf = raf;
       antennaGroup.rotation.y += 0.04;
+
+      waveClock += 0.016;
+      const WAVE_DURATION = 1.6;
+      waveRings.forEach(w=>{
+        const t = ((waveClock/WAVE_DURATION) + w.phase) % 1;
+        const scale = 0.4 + t*3.2;
+        w.mesh.scale.set(scale, scale, scale);
+        w.mesh.material.opacity = 0.55 * (1 - t);
+      });
+
       renderer.render(scene, camera);
     }
     const raf0 = requestAnimationFrame(animate);
