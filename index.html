@@ -549,19 +549,24 @@
       const centerLat = (blockBounds[0][0]+blockBounds[1][0])/2;
       const centerLng = (blockBounds[0][1]+blockBounds[1][1])/2;
 
-      const dispW = 185, dispH = 146, buf = 2;
+      const cornerA = map.latLngToContainerPoint(L.latLng(blockBounds[0][0], blockBounds[0][1]));
+      const cornerB = map.latLngToContainerPoint(L.latLng(blockBounds[1][0], blockBounds[1][1]));
+      const dispW = Math.max(60, Math.round(Math.abs(cornerB.x - cornerA.x) * 1.15));
+      const dispH = Math.round(dispW * 0.79);
+      const buf = 2;
       const canvasId = 'baseCanvas_' + (idx++);
       L.marker([centerLat,centerLng], {
         icon: L.divIcon({
           className:'',
           html:'<canvas id="'+canvasId+'" width="'+(dispW*buf)+'" height="'+(dispH*buf)+'" style="width:'+dispW+'px;height:'+dispH+'px;filter:drop-shadow(0 5px 4px rgba(0,0,0,0.4)) drop-shadow(0 0 7px rgba(245,185,63,0.6));"></canvas>',
           iconSize:[dispW, dispH],
-          iconAnchor:[dispW/2, dispH*0.88]
+          iconAnchor:[dispW/2, dispH*0.68]
         })
       }).addTo(baseLayer);
       setTimeout(()=> initBase3D(canvasId), 0);
     }
   }
+  map.on('zoomend', renderBases);
 
   function initBase3D(canvasId){
     const canvas = document.getElementById(canvasId);
