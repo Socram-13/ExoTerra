@@ -23,6 +23,8 @@
     --gold: #F5B93F;
     --violet: #8B6BFF;
     --violet-dim: rgba(139,107,255,0.35);
+    --leaf: #34D399;
+    --leaf-dim: rgba(52,211,153,0.35);
     --text: #E8EEF7;
     --text-dim: #8595AD;
     --danger: #FF6B6B;
@@ -136,7 +138,7 @@
   }
   .leaflet-container{background:#0A0F1A;}
 
-  .cell-owned{filter:drop-shadow(0 0 4px var(--violet));}
+  .cell-owned{filter:drop-shadow(0 0 4px var(--leaf));}
   .cell-locked:hover{cursor:pointer;}
 
   .diamond-icon{cursor:pointer;}
@@ -231,7 +233,7 @@
   .legend span{display:flex;align-items:center;gap:5px;}
   .swatch{width:10px;height:10px;border-radius:3px;display:inline-block;}
   .sw-locked{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.25);}
-  .sw-owned{background:var(--violet-dim);border:1px solid var(--violet);}
+  .sw-owned{background:var(--leaf-dim);border:1px solid var(--leaf);}
 
   /* ---------- FLOATING BUTTONS ---------- */
   .recenter-btn{
@@ -509,9 +511,9 @@
         const id = i+'_'+j;
         const owned = state.ownedCells.has(id);
         const rect = L.rectangle(cellBounds(i,j), {
-          color: owned ? '#8B6BFF' : 'rgba(255,255,255,0.28)',
+          color: owned ? '#34D399' : 'rgba(255,255,255,0.28)',
           weight: owned ? 2 : 1,
-          fillColor: owned ? '#8B6BFF' : '#ffffff',
+          fillColor: owned ? '#34D399' : '#ffffff',
           fillOpacity: owned ? 0.28 : 0.03,
           className: owned ? 'cell-owned' : 'cell-locked'
         }).addTo(cellLayer);
@@ -667,8 +669,13 @@
   }
 
   function refreshBaseAvailability(){
-    const eligible = findEligibleBaseBlock();
     const bar = document.getElementById('baseBar');
+    if(state.bases.size > 0){ // solo se permite 1 base por jugador
+      bar.style.display = 'none';
+      bar.dataset.blockId = '';
+      return;
+    }
+    const eligible = findEligibleBaseBlock();
     if(eligible){
       bar.style.display = 'flex';
       bar.dataset.blockId = eligible.id;
@@ -686,7 +693,7 @@
     openConfirmBase(id);
   }
   function confirmBuildBase(id){
-    if(state.coins < BASE_COST || state.bases.has(id)){ closeConfirm(); return; }
+    if(state.coins < BASE_COST || state.bases.has(id) || state.bases.size > 0){ closeConfirm(); return; }
     state.coins -= BASE_COST;
     state.bases.add(id);
     updateHUD();
