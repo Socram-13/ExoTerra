@@ -23,7 +23,7 @@
   }
 
   *{box-sizing:border-box;}
-  html,body{height:100%;margin:0;padding:0;}
+  html,body{height:100%;height:100dvh;margin:0;padding:0;}
   body{
     font-family:'Inter',sans-serif;
     background:var(--bg);
@@ -35,6 +35,7 @@
     position:relative;
     width:100%;
     height:100vh;
+    height:100dvh;
     display:flex;
     flex-direction:column;
   }
@@ -93,12 +94,12 @@
   }
   #map{
     position:absolute;
-    left:-20%; top:-20%;
-    width:140%;
-    height:140%;
+    left:-25%; top:-50%;
+    width:150%;
+    height:190%;
     background:#0A0F1A;
     transform-origin:50% 100%;
-    transform:rotateX(35deg) scale(1.6);
+    transform:rotateX(35deg) scale(1.7);
   }
   .leaflet-container{background:#0A0F1A;}
 
@@ -644,10 +645,10 @@
 
     if(lastPos){
       const moved = distMeters(lastPos, {lat,lng});
-      if(moved > 1){
+      if(moved > 1 && moved < 100){
         heading = bearingDeg(lastPos, {lat,lng});
-        lastPos = {lat,lng};
       }
+      lastPos = {lat,lng};
     } else {
       lastPos = {lat,lng};
     }
