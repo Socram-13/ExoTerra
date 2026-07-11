@@ -350,7 +350,7 @@
   const CELL_COST = 10;
   const DIAMOND_REWARD_COINS = 5;
   const ACTION_RADIUS_M = 25;
-  const TARGET_SCREEN_METERS = ACTION_RADIUS_M*2 + CELL_METERS*2; // diámetro del radio de acción + 1 celda de cada lado
+  const TARGET_SCREEN_METERS = ACTION_RADIUS_M*2 + CELL_METERS*2*3; // radio de acción + 3 celdas de margen por lado (1 base + 2 extra por la inclinación)
   const COLLECT_RADIUS_M = ACTION_RADIUS_M;
   const DIAMOND_MIN = 2;
   const DIAMOND_MAX = 6;
