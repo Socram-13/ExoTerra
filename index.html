@@ -547,10 +547,10 @@
         const id = i+'_'+j;
         const owned = state.ownedCells.has(id);
         const rect = L.rectangle(cellBounds(i,j), {
-          color: owned ? '#34D399' : 'rgba(255,255,255,0.28)',
+          color: owned ? '#34D399' : 'rgba(255,255,255,0.5)',
           weight: owned ? 2 : 1,
           fillColor: owned ? '#34D399' : '#ffffff',
-          fillOpacity: owned ? 0.28 : 0.03,
+          fillOpacity: owned ? 0.28 : 0.08,
           className: owned ? 'cell-owned' : 'cell-locked'
         }).addTo(cellLayer);
         rect.on('click', ()=> tryBuyCell(id, i, j));
