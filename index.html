@@ -1128,6 +1128,10 @@
     if(map.setBearing) map.setBearing(0);
   });
 
+  map.on('rotate', ()=>{
+    if(state.userPos) setViewTilted([state.userPos.lat, state.userPos.lng], FIXED_ZOOM);
+  });
+
   // ---------- PERFIL: NOMBRE Y FOTO ----------
   const avatarEl = document.getElementById('avatar');
   const avatarInput = document.getElementById('avatarInput');
