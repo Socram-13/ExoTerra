@@ -137,6 +137,11 @@
     transform:rotateX(32deg) scale(1.9);
   }
   .leaflet-container{background:#0A0F1A;}
+  .leaflet-tile-pane, .leaflet-map-pane, .leaflet-tile{
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
 
   .cell-owned{filter:drop-shadow(0 0 4px var(--leaf));}
   .cell-locked:hover{cursor:pointer;}
@@ -451,7 +456,12 @@
     touchRotate:false,
     bearing:0
   }).setView([19.4326, -99.1332], 20);
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:21, maxNativeZoom:19 }).addTo(map);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom:21, maxNativeZoom:19,
+    keepBuffer: 6,          // precarga varias filas/columnas extra alrededor de lo visible
+    updateWhenIdle: false,  // sigue cargando tiles aunque el mapa se esté moviendo/girando
+    updateWhenZooming: true
+  }).addTo(map);
 
   const cellLayer = L.layerGroup().addTo(map);
   const baseLayer = L.layerGroup().addTo(map);
