@@ -481,7 +481,10 @@
     // Coloca al usuario centrado horizontalmente y a 2/5 de la pantalla desde abajo (compensando la inclinación 3D)
     const h = document.getElementById('mapWrap').clientHeight || 500;
     const offsetPx = h * 0.42;
-    const targetPoint = map.project(latlng, zoom).subtract(L.point(0, offsetPx));
+    const bearingRad = (map.getBearing ? map.getBearing() : 0) * Math.PI/180;
+    // El offset debe apuntar "hacia abajo en pantalla", no siempre al norte: se rota según el giro actual del mapa
+    const offsetVec = L.point(offsetPx * Math.sin(bearingRad), offsetPx * Math.cos(bearingRad));
+    const targetPoint = map.project(latlng, zoom).subtract(offsetVec);
     const shifted = map.unproject(targetPoint, zoom);
     if(animate){
       map.setView(shifted, zoom, { animate:true, duration:0.5, easeLinearity:0.4 });
