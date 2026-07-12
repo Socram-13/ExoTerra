@@ -487,7 +487,7 @@
     const targetPoint = map.project(latlng, zoom).subtract(offsetVec);
     const shifted = map.unproject(targetPoint, zoom);
     if(animate){
-      map.setView(shifted, zoom, { animate:true, duration:0.5, easeLinearity:0.4 });
+      map.setView(shifted, zoom, { animate:true, duration:0.25, easeLinearity:0.5 });
     } else {
       map.setView(shifted, zoom);
     }
@@ -889,7 +889,7 @@
     const to = L.latLng(lat,lng);
     const myGen = ++animGen;
     const start = performance.now();
-    const DURATION = 450;
+    const DURATION = 250;
     function step(now){
       if(myGen !== animGen) return; // una animación más nueva la reemplazó
       const t = Math.min(1, (now-start)/DURATION);
@@ -942,7 +942,7 @@
     } else {
       animateMarkerTo(lat,lng);
       const now = performance.now();
-      if(!window._lastFollowAt || now - window._lastFollowAt > 800){
+      if(!window._lastFollowAt || now - window._lastFollowAt > 350){
         window._lastFollowAt = now;
         setViewTilted([lat,lng], FIXED_ZOOM, true);
       }
