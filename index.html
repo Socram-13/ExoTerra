@@ -1131,15 +1131,6 @@
     if(map.setBearing) map.setBearing(0);
   });
 
-  // Cada vez que cambia el giro (gesto de 2 dedos o programático), recentra sobre el usuario
-  if(map.setBearing){
-    const _originalSetBearing = map.setBearing.bind(map);
-    map.setBearing = function(theta){
-      _originalSetBearing(theta);
-      if(state.userPos) setViewTilted([state.userPos.lat, state.userPos.lng], FIXED_ZOOM);
-    };
-  }
-
   // ---------- PERFIL: NOMBRE Y FOTO ----------
   const avatarEl = document.getElementById('avatar');
   const avatarInput = document.getElementById('avatarInput');
