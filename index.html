@@ -448,7 +448,7 @@
     keyboard:false,
     rotate:true,
     rotateControl:false,
-    touchRotate:true,
+    touchRotate:false,
     bearing:0
   }).setView([19.4326, -99.1332], 20);
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:21, maxNativeZoom:19 }).addTo(map);
@@ -1130,6 +1130,49 @@
   document.getElementById('compassBtn').addEventListener('click', ()=>{
     if(map.setBearing) map.setBearing(0);
   });
+
+  // ---------- GIRO DEL MAPA CON 1 DEDO ----------
+  (function(){
+    const mapContainer = map.getContainer();
+    let rotating = false;
+    let startAngle = 0;
+    let startBearing = 0;
+    const DRAG_THRESHOLD = 6; // px: por debajo de esto se considera un toque, no un giro
+    let startX = 0, startY = 0, movedEnough = false;
+
+    function angleFromCenter(clientX, clientY){
+      const rect = mapContainer.getBoundingClientRect();
+      const cx = rect.left + rect.width/2;
+      const cy = rect.top + rect.height/2;
+      return Math.atan2(clientY - cy, clientX - cx) * 180/Math.PI;
+    }
+
+    mapContainer.addEventListener('touchstart', (e)=>{
+      if(e.touches.length !== 1) return;
+      const t = e.touches[0];
+      startX = t.clientX; startY = t.clientY;
+      movedEnough = false;
+      rotating = true;
+      startAngle = angleFromCenter(t.clientX, t.clientY);
+      startBearing = map.getBearing ? map.getBearing() : 0;
+    }, {passive:true});
+
+    mapContainer.addEventListener('touchmove', (e)=>{
+      if(!rotating || e.touches.length !== 1) return;
+      const t = e.touches[0];
+      if(!movedEnough){
+        const dx = t.clientX - startX, dy = t.clientY - startY;
+        if(Math.hypot(dx,dy) < DRAG_THRESHOLD) return;
+        movedEnough = true;
+      }
+      const currentAngle = angleFromCenter(t.clientX, t.clientY);
+      const delta = currentAngle - startAngle;
+      if(map.setBearing) map.setBearing(startBearing + delta);
+    }, {passive:true});
+
+    mapContainer.addEventListener('touchend', ()=>{ rotating = false; });
+    mapContainer.addEventListener('touchcancel', ()=>{ rotating = false; });
+  })();
 
   // ---------- PERFIL: NOMBRE Y FOTO ----------
   const avatarEl = document.getElementById('avatar');
