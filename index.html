@@ -534,7 +534,6 @@
     if(!state.latStep) return;
     cellLayer.clearLayers();
     cellRects.clear();
-    if(map.getZoom() < GRID_MIN_ZOOM) return;
 
     const bounds = map.getBounds().pad(0.3);
     const iMin = Math.floor(bounds.getSouth() / state.latStep);
