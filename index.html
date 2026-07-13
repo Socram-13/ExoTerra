@@ -125,6 +125,7 @@
     position:relative;
     overflow:hidden;
     perspective:1000px;
+    transform-style: preserve-3d;
     background:var(--bg);
   }
   #map{
@@ -135,11 +136,18 @@
     background:#0A0F1A;
     transform-origin:50% 100%;
     transform:rotateX(32deg) scale(1.9);
+    transform-style: preserve-3d;
+    backface-visibility: visible;
   }
   .leaflet-container{background:#0A0F1A;}
-  .leaflet-tile-pane, .leaflet-map-pane, .leaflet-tile{
+  .leaflet-map-pane{
+    transform-style: preserve-3d;
+    backface-visibility: visible;
+  }
+  .leaflet-tile-pane, .leaflet-tile{
     will-change: transform;
     transform: translateZ(0);
+    backface-visibility: visible;
   }
 
   .cell-owned{filter:drop-shadow(0 0 4px var(--leaf));}
